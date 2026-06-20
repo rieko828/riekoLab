@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>riekoLab</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bay:#1b2a41;
+  --bay-deep:#0f1c2e;
+  --paper:#f6f1e7;
+  --paper-dim:#efe8da;
+  --coral:#e07a5f;
+  --teal:#5b9aa0;
+  --rose:#d96c8f;
+  --amber:#e8a14b;
+  --orange:#ef8200;     /* S-Pulse */
+  --ink:#243447;
+  --muted:#7a8696;
+  --line:rgba(27,42,65,.10);
+  --shadow:0 10px 30px rgba(15,28,46,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(27,42,65,.06) 1px, transparent 0) 0 0/22px 22px,
+    var(--paper);
+  min-height:100vh;
+  display:flex; flex-direction:column; align-items:center;
+  padding:0 0 60px;
+}
+
+/* ── header ── */
+.hero{
+  width:100%;
+  background:linear-gradient(135deg, var(--bay-deep) 0%, var(--bay) 50%, #6a4a52 92%, var(--coral) 135%);
+  color:#fff;
+  padding:30px 22px 34px;
+  border-radius:0 0 28px 28px;
+  box-shadow:0 8px 26px rgba(15,28,46,.26);
+}
+.hero-inner{max-width:540px; margin:0 auto; display:flex; align-items:center; gap:16px;}
+.flask{flex:none;}
+.flask svg{display:block;}
+.hero h1{
+  font-family:'Zen Maru Gothic',sans-serif; font-weight:700;
+  font-size:1.9rem; letter-spacing:.02em; line-height:1;
+}
+.hero .tag{
+  margin-top:7px; font-size:.8rem; color:rgba(255,255,255,.72);
+  font-weight:500; letter-spacing:.04em;
+}
+.hero .eyebrow{
+  font-size:.6rem; letter-spacing:.32em; color:rgba(255,255,255,.5);
+  font-weight:700; margin-bottom:6px;
+}
+
+/* ── project list ── */
+.wrap{width:100%; max-width:540px; padding:24px 18px 0;}
+.section-label{
+  display:flex; align-items:center; gap:10px;
+  font-size:.68rem; font-weight:700; letter-spacing:.16em; color:var(--muted);
+  margin:6px 4px 14px;
+}
+.section-label::after{content:''; flex:1; height:1px; background:var(--line);}
+
+.card{
+  display:flex; align-items:center; gap:15px;
+  background:#fff; border:1px solid var(--line); border-radius:18px;
+  padding:16px 17px; margin-bottom:13px;
+  text-decoration:none; color:inherit;
+  box-shadow:var(--shadow);
+  position:relative; overflow:hidden;
+  transition:transform .14s, box-shadow .14s;
+}
+.card::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:5px;
+  background:var(--accent, var(--coral));
+}
+a.card:hover{transform:translateY(-2px); box-shadow:0 14px 34px rgba(15,28,46,.18);}
+a.card:active{transform:translateY(0) scale(.99);}
+.card.soon{opacity:.62;}
+
+.icon-tile{
+  width:50px;height:50px;flex:none;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;font-size:1.6rem;
+  background:var(--accent-soft, rgba(224,122,95,.14));
+}
+.card-body{flex:1; min-width:0;}
+.card-body h2{
+  font-family:'Zen Maru Gothic',sans-serif; font-weight:700;
+  font-size:1.04rem; line-height:1.3; color:var(--ink);
+}
+.card-body p{font-size:.76rem; color:var(--muted); margin-top:4px; line-height:1.5;}
+.card-meta{display:flex; align-items:center; gap:7px; margin-top:9px;}
+.badge{
+  font-size:.6rem; font-weight:700; letter-spacing:.06em;
+  padding:3px 9px; border-radius:11px;
+}
+.badge.live{background:rgba(91,154,160,.16); color:#3f7a80;}
+.badge.soon{background:var(--paper-dim); color:var(--muted);}
+.badge.ext{background:rgba(224,122,95,.14); color:#c25a40;}
+.arrow{flex:none; color:var(--muted); font-size:1.1rem; opacity:.6;}
+.card.soon .arrow{display:none;}
+
+/* ── footer ── */
+.foot{
+  max-width:540px; width:100%; padding:24px 22px 0;
+  text-align:center; color:var(--muted); font-size:.7rem; line-height:1.7;
+}
+.foot .mark{font-family:'Zen Maru Gothic',sans-serif; color:var(--ink); font-weight:700;}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important; animation:none !important;}
+}
+@media (min-width:600px){
+  .hero h1{font-size:2.2rem;}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="flask">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+        <path d="M23 8h10M24.5 8v15.5L14 41a4 4 0 0 0 3.5 6h21a4 4 0 0 0 3.5-6L31.5 23.5V8"
+              stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M18.5 34c4-2 7 2 10 0s6-2 9 .2L42 41a4 4 0 0 1-3.5 6h-21A4 4 0 0 1 14 41l4.5-7z"
+              fill="#e07a5f"/>
+        <circle cx="25" cy="40" r="1.7" fill="#fff" opacity=".75"/>
+        <circle cx="31" cy="43" r="1.2" fill="#fff" opacity=".6"/>
+        <circle cx="33" cy="37.5" r="1" fill="#fff" opacity=".5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="eyebrow">PORTFOLIO</div>
+      <h1>riekoLab</h1>
+      <div class="tag">りえこの、つくったもの置き場。</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="section-label">PROJECTS</div>
+  <div id="cards"></div>
+</div>
+
+<footer class="foot">
+  <span class="mark">riekoLab</span> ・ Tokyo<br>
+  小さく作って、ここに並べていきます。
+</footer>
+
+<script>
+/* ───── プロジェクト一覧 ─────
+   新しく作ったら、ここに1つ足すだけでカードが増えます。
+   url: リンク先（同じリポジトリ内なら 'map/' のように相対パスでOK）
+   status: 'live'（公開中）/ 'soon'（準備中）/ 'ext'（外部リンク）
+*/
+const PROJECTS = [
+  {
+    emoji:'🗺️',
+    title:'近所のお気に入りマップ',
+    desc:'海岸まわりのカフェ・ごはん・デートスポットを地図にメモ。タグで絞り込める。',
+    url:'map/',
+    status:'live',
+    accent:'#5b9aa0'
+  },
+  {
+    emoji:'🃏',
+    title:'自己紹介カード',
+    desc:'みんなで引けるアイスブレイク用のお題カード。high5の集まり用。',
+    url:'https://high5hatta.github.io/high5lab/',
+    status:'ext',
+    accent:'#e07a5f'
+  },
+];
+
+const STATUS = {
+  live:{cls:'live', label:'公開中'},
+  ext: {cls:'ext',  label:'別サイト'},
+  soon:{cls:'soon', label:'準備中'},
+};
+
+function hexA(hex,a){
+  const n=parseInt(hex.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;
+}
+
+const box = document.getElementById('cards');
+PROJECTS.forEach(p=>{
+  const st = STATUS[p.status] || STATUS.soon;
+  const clickable = p.status!=='soon';
+  const tag = clickable ? 'a' : 'div';
+  const el = document.createElement(tag);
+  el.className = 'card' + (p.status==='soon'?' soon':'');
+  el.style.setProperty('--accent', p.accent);
+  el.style.setProperty('--accent-soft', hexA(p.accent,0.14));
+  if(clickable){
+    el.href = p.url;
+    if(p.status==='ext'){ el.target='_blank'; el.rel='noopener'; }
+  }
+  el.innerHTML = `
+    <div class="icon-tile">${p.emoji}</div>
+    <div class="card-body">
+      <h2>${p.title}</h2>
+      <p>${p.desc}</p>
+      <div class="card-meta"><span class="badge ${st.cls}">${st.label}</span></div>
+    </div>
+    <span class="arrow">→</span>`;
+  box.appendChild(el);
+});
+</script>
+</body>
+</html>
