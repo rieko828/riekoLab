@@ -85,6 +85,13 @@ body{
   color:var(--muted); white-space:nowrap; cursor:pointer;
 }
 .area-chip.active{background:var(--bay); color:#fff; border-color:var(--bay);}
+
+.list-filter-chips{margin-top:0; margin-bottom:10px;}
+.list-filter-chips .chip{
+  border:1px solid var(--line); background:#fff; color:var(--muted);
+}
+.list-filter-chips .chip.active{background:var(--bay); color:#fff; border-color:var(--bay);}
+.list-filter-chips .chip.chip-add{display:none;}
 .list-empty{text-align:center; color:var(--muted); font-size:.8rem; padding:30px 0;}
 .list-item{
   background:#fff; border:1px solid var(--line); border-radius:16px; padding:13px 15px;
@@ -236,23 +243,23 @@ body{
   <div class="sheet">
     <h2 id="sheetTitle">新しい場所を登録</h2>
     <div class="field">
-      <label>場所の名前</label>
+      <label>場所の名前（必須）</label>
       <input type="text" id="fName" placeholder="例：〇〇カフェ">
     </div>
     <div class="field">
-      <label>タグ（複数選べます）</label>
+      <label>タグ（必須・複数選べます）</label>
       <div class="tag-picker" id="tagPicker"></div>
     </div>
     <div class="field">
-      <label>メモ（おすすめポイントなど）</label>
+      <label>メモ（必須・おすすめポイントなど）</label>
       <textarea id="fMemo" placeholder="例：窓際の席が海を見渡せて最高"></textarea>
     </div>
     <div class="field">
-      <label>リンク（食べログ・公式サイトなど、任意）</label>
+      <label>リンク（任意・食べログ・公式サイトなど）</label>
       <input type="text" id="fUrl" placeholder="https://...">
     </div>
     <div class="field">
-      <label>投稿者名</label>
+      <label>投稿者名（必須）</label>
       <input type="text" id="fPoster" placeholder="例：りえこ">
     </div>
     <div class="sheet-actions">
@@ -286,6 +293,7 @@ body{
       <h2>登録済み一覧</h2>
       <button class="list-close" id="btnCloseList">閉じる</button>
     </div>
+    <div class="chips list-filter-chips" id="listTagChips"></div>
     <div class="area-chips" id="areaChips"></div>
     <div class="list-scroll" id="listScroll"></div>
   </div>
@@ -502,6 +510,7 @@ onValue(tagsRef, (snapshot)=>{
   tagsData = snapshot.val() || {};
   renderChips();
   renderTagPicker();
+  renderListTagChips();
   if(tagSheetOpen) renderTagManageList();
   Object.entries(markers).forEach(([id, entry])=>{
     entry.marker.setIcon(makeIcon(entry.tags));
@@ -513,7 +522,27 @@ onValue(tagsRef, (snapshot)=>{
 const listPanel = document.getElementById('listPanel');
 const listScroll = document.getElementById('listScroll');
 const areaChipsEl = document.getElementById('areaChips');
+const listTagChipsEl = document.getElementById('listTagChips');
 let activeArea = 'all';
+
+function renderListTagChips(){
+  const tagEntries = Object.values(tagsData);
+  let html = `<div class="chip${activeFilter==='all' ? ' active' : ''}" data-tag="all">すべて</div>`;
+  tagEntries.forEach(t=>{
+    html += `<div class="chip${activeFilter===t.name ? ' active' : ''}" data-tag="${escapeHtml(t.name)}">${t.emoji||'🏷️'} ${escapeHtml(t.name)}</div>`;
+  });
+  listTagChipsEl.innerHTML = html;
+}
+
+listTagChipsEl.addEventListener('click', (e)=>{
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  activeFilter = chip.dataset.tag;
+  renderChips();
+  renderListTagChips();
+  applyFilter();
+  renderList();
+});
 
 function renderAreaChips(){
   let html = `<div class="area-chip active" data-area="all">すべてのエリア</div>`;
@@ -572,6 +601,7 @@ listScroll.addEventListener('click', (e)=>{
 
 function openList(){
   listOpen = true;
+  renderListTagChips();
   renderList();
   listPanel.classList.add('open');
 }
@@ -802,8 +832,15 @@ btnSaveTag.addEventListener('click', async ()=>{
 });
 
 fName.addEventListener('input', validateForm);
+fMemo.addEventListener('input', validateForm);
+fPoster.addEventListener('input', validateForm);
 function validateForm(){
-  btnSave.disabled = !(fName.value.trim() && selectedTags.length>0);
+  btnSave.disabled = !(
+    fName.value.trim() &&
+    selectedTags.length>0 &&
+    fMemo.value.trim() &&
+    fPoster.value.trim()
+  );
 }
 
 btnSave.addEventListener('click', async ()=>{
