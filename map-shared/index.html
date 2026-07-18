@@ -77,6 +77,14 @@ body{
 .list-head h2{font-family:'Zen Maru Gothic',sans-serif; font-size:1rem;}
 .list-close{background:var(--paper-dim); border:none; border-radius:100px; padding:7px 14px; font-size:.72rem; font-weight:700; color:var(--muted); cursor:pointer;}
 .list-scroll{overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+.area-chips{display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px; scrollbar-width:none;}
+.area-chips::-webkit-scrollbar{display:none;}
+.area-chip{
+  flex:none; font-size:.7rem; font-weight:700; padding:6px 13px;
+  border-radius:100px; border:1px solid var(--line); background:#fff;
+  color:var(--muted); white-space:nowrap; cursor:pointer;
+}
+.area-chip.active{background:var(--bay); color:#fff; border-color:var(--bay);}
 .list-empty{text-align:center; color:var(--muted); font-size:.8rem; padding:30px 0;}
 .list-item{
   background:#fff; border:1px solid var(--line); border-radius:16px; padding:13px 15px;
@@ -278,6 +286,7 @@ body{
       <h2>登録済み一覧</h2>
       <button class="list-close" id="btnCloseList">閉じる</button>
     </div>
+    <div class="area-chips" id="areaChips"></div>
     <div class="list-scroll" id="listScroll"></div>
   </div>
 </div>
@@ -319,6 +328,24 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 19
 }).addTo(map);
+
+/* ── エリア自動判定（位置情報から一番近いエリア名を割り当てる） ── */
+const AREAS = [
+  {name:'竹芝', lat:35.6551, lng:139.7607},
+  {name:'浜松町・大門', lat:35.6555, lng:139.7566},
+  {name:'海岸・日の出', lat:35.6480, lng:139.7570},
+  {name:'三田', lat:35.6478, lng:139.7460},
+  {name:'田町', lat:35.6459, lng:139.7496},
+  {name:'芝浦', lat:35.6431, lng:139.7493},
+];
+function getAreaName(lat, lng){
+  let best = null, bestDist = Infinity;
+  AREAS.forEach(a=>{
+    const d = (a.lat-lat)**2 + (a.lng-lng)**2;
+    if(d < bestDist){ bestDist = d; best = a.name; }
+  });
+  return best || 'その他';
+}
 
 /* ── タグ管理（Firebaseに保存、みんなで自由に追加できる） ── */
 const DEFAULT_TAGS = [
@@ -485,26 +512,48 @@ onValue(tagsRef, (snapshot)=>{
 /* ── 一覧パネル ── */
 const listPanel = document.getElementById('listPanel');
 const listScroll = document.getElementById('listScroll');
+const areaChipsEl = document.getElementById('areaChips');
+let activeArea = 'all';
+
+function renderAreaChips(){
+  let html = `<div class="area-chip active" data-area="all">すべてのエリア</div>`;
+  AREAS.forEach(a=>{
+    html += `<div class="area-chip" data-area="${escapeHtml(a.name)}">${escapeHtml(a.name)}</div>`;
+  });
+  areaChipsEl.innerHTML = html;
+}
+renderAreaChips();
+
+areaChipsEl.addEventListener('click', (e)=>{
+  const chip = e.target.closest('.area-chip');
+  if(!chip) return;
+  areaChipsEl.querySelectorAll('.area-chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  activeArea = chip.dataset.area;
+  renderList();
+});
 
 function renderList(){
   const entries = Object.entries(pinsData)
     .filter(([id, p]) => activeFilter==='all' || (p.tags||[]).includes(activeFilter))
+    .filter(([id, p]) => activeArea==='all' || getAreaName(p.lat, p.lng)===activeArea)
     .sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
 
   if(entries.length === 0){
-    listScroll.innerHTML = `<div class="list-empty">まだ登録された場所がないよ</div>`;
+    listScroll.innerHTML = `<div class="list-empty">この条件だとまだ場所がないよ</div>`;
     return;
   }
 
   listScroll.innerHTML = entries.map(([id, p])=>{
     const tagsHtml = (p.tags||[]).map(t=>`<span class="li-tag" style="background:${getTagColor(t)}">${escapeHtml(t)}</span>`).join('');
     const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) : '';
+    const areaName = getAreaName(p.lat, p.lng);
     return `
       <button class="list-item" data-id="${id}">
         <h3>${escapeHtml(p.name)}</h3>
         <div class="li-tags">${tagsHtml}</div>
         ${p.memo ? `<div class="li-memo">${escapeHtml(p.memo)}</div>` : ''}
-        <div class="li-meta">by ${escapeHtml(p.postedBy||'匿名')} ・ ${dateStr}</div>
+        <div class="li-meta">📍${escapeHtml(areaName)} ・ by ${escapeHtml(p.postedBy||'匿名')} ・ ${dateStr}</div>
       </button>`;
   }).join('');
 }
