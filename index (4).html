@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>みんなの近所マップ | riekoLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{
+  --bay:#1b2a41;
+  --bay-deep:#0f1c2e;
+  --paper:#f6f1e7;
+  --paper-dim:#efe8da;
+  --coral:#e07a5f;
+  --teal:#5b9aa0;
+  --rose:#d96c8f;
+  --amber:#e8a14b;
+  --ink:#243447;
+  --muted:#7a8696;
+  --line:rgba(27,42,65,.10);
+  --shadow:0 10px 30px rgba(15,28,46,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+  color:var(--ink);
+  background:var(--paper);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+
+/* ── header ── */
+.hero{
+  background:linear-gradient(135deg, var(--bay-deep) 0%, var(--bay) 55%, #5b4a5f 95%, var(--coral) 140%);
+  color:#fff;
+  padding:16px 18px 14px;
+  box-shadow:0 6px 20px rgba(15,28,46,.24);
+  z-index:500; position:relative;
+}
+.hero-top{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.back-link{font-size:.7rem; color:rgba(255,255,255,.68); text-decoration:none; font-weight:500;}
+.hero h1{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:1.15rem;}
+.hero .tag{font-size:.68rem; color:rgba(255,255,255,.68); margin-top:2px;}
+.live-badge{
+  display:flex; align-items:center; gap:5px; font-size:.62rem; font-weight:700;
+  color:rgba(255,255,255,.85); background:rgba(255,255,255,.12);
+  padding:5px 10px; border-radius:100px; letter-spacing:.04em;
+}
+.live-dot{width:6px; height:6px; border-radius:50%; background:#7ee0a0; animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.3;}}
+
+/* ── filter chips ── */
+.chips{display:flex; gap:6px; overflow-x:auto; margin-top:12px; padding-bottom:2px; scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex:none; font-size:.7rem; font-weight:700; padding:6px 13px;
+  border-radius:100px; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.8); white-space:nowrap; cursor:pointer;
+}
+.chip.active{background:#fff; color:var(--bay); border-color:#fff;}
+
+/* ── map ── */
+.map-wrap{flex:1; position:relative;}
+#map{position:absolute; inset:0;}
+
+/* placement banner */
+.place-banner{
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  background:var(--bay-deep); color:#fff; font-size:.76rem; font-weight:700;
+  padding:10px 18px; border-radius:100px; box-shadow:var(--shadow);
+  z-index:600; display:flex; align-items:center; gap:8px;
+  animation:drop .25s ease;
+}
+@keyframes drop{from{opacity:0; transform:translate(-50%,-10px);} to{opacity:1; transform:translate(-50%,0);}}
+.place-banner button{
+  background:rgba(255,255,255,.18); border:none; color:#fff; border-radius:100px;
+  padding:4px 10px; font-size:.68rem; font-weight:700; cursor:pointer;
+}
+
+/* add button */
+.fab{
+  position:absolute; right:16px; bottom:20px; z-index:500;
+  background:var(--coral); color:#fff; border:none; border-radius:100px;
+  padding:14px 20px; font-weight:700; font-size:.86rem;
+  box-shadow:0 10px 24px rgba(224,122,95,.4);
+  display:flex; align-items:center; gap:7px; cursor:pointer;
+}
+.fab.cancel{background:var(--muted); box-shadow:0 10px 24px rgba(122,134,150,.35);}
+
+/* ── bottom sheet form ── */
+.sheet-backdrop{
+  position:fixed; inset:0; background:rgba(15,28,46,.42); z-index:700;
+  display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.sheet-backdrop.open{opacity:1; pointer-events:auto;}
+.sheet{
+  width:100%; max-width:520px; background:#fff; border-radius:24px 24px 0 0;
+  padding:22px 20px 26px; box-shadow:0 -10px 40px rgba(15,28,46,.3);
+  transform:translateY(100%); transition:transform .25s cubic-bezier(.4,.2,.2,1);
+  max-height:85vh; overflow-y:auto;
+}
+.sheet-backdrop.open .sheet{transform:translateY(0);}
+.sheet h2{font-family:'Zen Maru Gothic',sans-serif; font-size:1.05rem; margin-bottom:14px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:.7rem; font-weight:700; color:var(--muted); margin-bottom:6px; letter-spacing:.04em;}
+.field input[type=text], .field textarea{
+  width:100%; border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+  font-family:inherit; font-size:.88rem; color:var(--ink); background:var(--paper);
+}
+.field textarea{resize:vertical; min-height:64px;}
+.tag-picker{display:flex; gap:8px; flex-wrap:wrap;}
+.tag-opt{
+  padding:8px 14px; border-radius:100px; border:1px solid var(--line);
+  font-size:.78rem; font-weight:700; color:var(--muted); cursor:pointer; background:#fff;
+}
+.tag-opt.on{color:#fff;}
+.sheet-actions{display:flex; gap:10px; margin-top:6px;}
+.btn{
+  flex:1; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:.86rem;
+  cursor:pointer; font-family:inherit;
+}
+.btn-cancel{background:var(--paper-dim); color:var(--ink);}
+.btn-save{background:var(--coral); color:#fff;}
+.btn-save[disabled]{opacity:.45; pointer-events:none;}
+
+/* ── popup styling ── */
+.leaflet-popup-content-wrapper{border-radius:16px; box-shadow:var(--shadow);}
+.pin-pop{font-family:'Zen Kaku Gothic New',sans-serif; min-width:170px;}
+.pin-pop h3{font-family:'Zen Maru Gothic',sans-serif; font-size:.94rem; margin-bottom:4px;}
+.pin-pop .pop-tags{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;}
+.pin-pop .pop-tag{font-size:.6rem; font-weight:700; padding:2px 8px; border-radius:100px; color:#fff;}
+.pin-pop .pop-memo{font-size:.76rem; color:var(--ink); line-height:1.5; margin-bottom:6px;}
+.pin-pop .pop-meta{font-size:.65rem; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+.pin-pop .pop-del{background:none; border:none; color:var(--rose); font-size:.68rem; font-weight:700; cursor:pointer; padding:2px;}
+
+.toast{
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+  background:var(--bay-deep); color:#fff; font-size:.78rem; font-weight:700;
+  padding:10px 18px; border-radius:100px; z-index:900; opacity:0; pointer-events:none;
+  transition:opacity .2s, transform .2s; box-shadow:var(--shadow);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-top">
+    <div>
+      <a class="back-link" href="../index.html">← riekoLab</a>
+      <h1>みんなの近所マップ</h1>
+      <div class="tag">high5メンバーでお気に入りを持ち寄る地図</div>
+    </div>
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+  </div>
+  <div class="chips" id="chips">
+    <div class="chip active" data-tag="all">すべて</div>
+    <div class="chip" data-tag="カフェ">☕ カフェ</div>
+    <div class="chip" data-tag="ごはん">🍚 ごはん</div>
+    <div class="chip" data-tag="デート">💛 デート</div>
+    <div class="chip" data-tag="その他">📍 その他</div>
+  </div>
+</header>
+
+<div class="map-wrap">
+  <div id="map"></div>
+  <div class="place-banner hidden" id="placeBanner" style="display:none;">
+    地図をタップしてピンを置いてね
+    <button id="cancelPlace">やめる</button>
+  </div>
+  <button class="fab" id="fabAdd">＋ 場所を追加</button>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet">
+    <h2>新しい場所を登録</h2>
+    <div class="field">
+      <label>場所の名前</label>
+      <input type="text" id="fName" placeholder="例：〇〇カフェ">
+    </div>
+    <div class="field">
+      <label>タグ（複数選べます）</label>
+      <div class="tag-picker" id="tagPicker">
+        <div class="tag-opt" data-tag="カフェ" data-color="#5b9aa0">☕ カフェ</div>
+        <div class="tag-opt" data-tag="ごはん" data-color="#e07a5f">🍚 ごはん</div>
+        <div class="tag-opt" data-tag="デート" data-color="#d96c8f">💛 デート</div>
+        <div class="tag-opt" data-tag="その他" data-color="#e8a14b">📍 その他</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>メモ（おすすめポイントなど）</label>
+      <textarea id="fMemo" placeholder="例：窓際の席が海を見渡せて最高"></textarea>
+    </div>
+    <div class="field">
+      <label>投稿者名</label>
+      <input type="text" id="fPoster" placeholder="例：りえこ">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" id="btnCancelSheet">やめる</button>
+      <button class="btn btn-save" id="btnSave" disabled>この場所を登録</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+/* ═══════════════════════════════════════════════
+   Firebase設定
+   1. https://console.firebase.google.com/ で新規プロジェクトを作成
+   2. 「Realtime Database」を作成（ロックモードでOK。ルールは後で設定）
+   3. プロジェクト概要 → ウェブアプリを追加（</> アイコン）→ 表示された
+      firebaseConfig の中身を、下の空欄にそのままコピペしてください
+   ═══════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyA2kZXe0EYeGq1FtPfLmn_T8IUT7bkFrnQ",
+  authDomain: "high5-map-eee4a.firebaseapp.com",
+  databaseURL: "https://high5-map-eee4a-default-rtdb.firebaseio.com",
+  projectId: "high5-map-eee4a",
+  storageBucket: "high5-map-eee4a.firebasestorage.app",
+  messagingSenderId: "497569872905",
+  appId: "1:497569872905:web:1cbf05a7ce12e0e2600cd8"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const pinsRef = ref(db, "pins");
+
+/* ── 地図の初期化 ── */
+const map = L.map('map', { zoomControl: false }).setView([35.6478, 139.7568], 15); // 港区海岸3丁目付近
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+const TAG_COLORS = { 'カフェ':'#5b9aa0', 'ごはん':'#e07a5f', 'デート':'#d96c8f', 'その他':'#e8a14b' };
+
+function makeIcon(tags){
+  const color = TAG_COLORS[tags[0]] || '#1b2a41';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);box-shadow:0 3px 8px rgba(15,28,46,.35);border:2px solid #fff;"></div>`,
+    iconSize:[26,26], iconAnchor:[13,26], popupAnchor:[0,-26]
+  });
+}
+
+let markers = {};      // id -> {marker, tags}
+let activeFilter = 'all';
+
+function applyFilter(){
+  Object.values(markers).forEach(({marker, tags})=>{
+    const show = activeFilter==='all' || tags.includes(activeFilter);
+    const el = marker.getElement();
+    if(el) el.style.display = show ? '' : 'none';
+  });
+}
+
+document.getElementById('chips').addEventListener('click', (e)=>{
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.tag;
+  applyFilter();
+});
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function popupHtml(id, p){
+  const tagsHtml = (p.tags||[]).map(t=>`<span class="pop-tag" style="background:${TAG_COLORS[t]||'#7a8696'}">${escapeHtml(t)}</span>`).join('');
+  return `
+    <div class="pin-pop">
+      <h3>${escapeHtml(p.name)}</h3>
+      <div class="pop-tags">${tagsHtml}</div>
+      ${p.memo ? `<div class="pop-memo">${escapeHtml(p.memo)}</div>` : ''}
+      <div class="pop-meta">
+        <span>by ${escapeHtml(p.postedBy||'匿名')}</span>
+        <button class="pop-del" data-id="${id}">削除</button>
+      </div>
+    </div>`;
+}
+
+/* ── リアルタイム受信 ── */
+onValue(pinsRef, (snapshot)=>{
+  const data = snapshot.val() || {};
+  const seenIds = new Set(Object.keys(data));
+
+  // 消えたピンを地図から除去
+  Object.keys(markers).forEach(id=>{
+    if(!seenIds.has(id)){
+      map.removeLayer(markers[id].marker);
+      delete markers[id];
+    }
+  });
+
+  // 追加・更新
+  Object.entries(data).forEach(([id, p])=>{
+    if(markers[id]){
+      markers[id].marker.setPopupContent(popupHtml(id, p));
+      markers[id].tags = p.tags || [];
+      return;
+    }
+    const marker = L.marker([p.lat, p.lng], { icon: makeIcon(p.tags||[]) }).addTo(map);
+    marker.bindPopup(popupHtml(id, p));
+    marker.on('popupopen', ()=>{
+      const btn = document.querySelector(`.pop-del[data-id="${id}"]`);
+      if(btn) btn.addEventListener('click', ()=>{
+        if(confirm('この場所を削除しますか？')){
+          remove(ref(db, 'pins/' + id));
+        }
+      });
+    });
+    markers[id] = { marker, tags: p.tags || [] };
+  });
+
+  applyFilter();
+}, (err)=>{
+  showToast('データベースに接続できませんでした。Firebase設定を確認してね');
+  console.error(err);
+});
+
+/* ── ピン設置フロー ── */
+let placing = false;
+let pendingLatLng = null;
+let selectedTags = [];
+
+const fab = document.getElementById('fabAdd');
+const placeBanner = document.getElementById('placeBanner');
+const sheetBackdrop = document.getElementById('sheetBackdrop');
+const fName = document.getElementById('fName');
+const fMemo = document.getElementById('fMemo');
+const fPoster = document.getElementById('fPoster');
+const btnSave = document.getElementById('btnSave');
+
+fab.addEventListener('click', ()=>{
+  placing = true;
+  placeBanner.style.display = 'flex';
+  fab.style.display = 'none';
+  map.getContainer().style.cursor = 'crosshair';
+});
+
+document.getElementById('cancelPlace').addEventListener('click', stopPlacing);
+
+function stopPlacing(){
+  placing = false;
+  placeBanner.style.display = 'none';
+  fab.style.display = 'flex';
+  map.getContainer().style.cursor = '';
+}
+
+map.on('click', (e)=>{
+  if(!placing) return;
+  pendingLatLng = e.latlng;
+  stopPlacing();
+  openSheet();
+});
+
+function openSheet(){
+  fName.value = ''; fMemo.value = '';
+  selectedTags = [];
+  document.querySelectorAll('.tag-opt').forEach(el=>{
+    el.classList.remove('on');
+    el.style.background = '#fff'; el.style.color = 'var(--muted)'; el.style.borderColor='var(--line)';
+  });
+  validateForm();
+  sheetBackdrop.classList.add('open');
+}
+function closeSheet(){ sheetBackdrop.classList.remove('open'); }
+
+document.getElementById('btnCancelSheet').addEventListener('click', closeSheet);
+sheetBackdrop.addEventListener('click', (e)=>{ if(e.target===sheetBackdrop) closeSheet(); });
+
+document.getElementById('tagPicker').addEventListener('click', (e)=>{
+  const opt = e.target.closest('.tag-opt');
+  if(!opt) return;
+  const t = opt.dataset.tag, color = opt.dataset.color;
+  const on = opt.classList.toggle('on');
+  if(on){ selectedTags.push(t); opt.style.background = color; opt.style.color = '#fff'; opt.style.borderColor = color; }
+  else{ selectedTags = selectedTags.filter(x=>x!==t); opt.style.background = '#fff'; opt.style.color = 'var(--muted)'; opt.style.borderColor='var(--line)'; }
+  validateForm();
+});
+
+fName.addEventListener('input', validateForm);
+function validateForm(){
+  btnSave.disabled = !(fName.value.trim() && selectedTags.length>0);
+}
+
+btnSave.addEventListener('click', async ()=>{
+  if(!pendingLatLng) return;
+  const payload = {
+    name: fName.value.trim(),
+    tags: selectedTags,
+    memo: fMemo.value.trim(),
+    postedBy: fPoster.value.trim() || '匿名',
+    lat: pendingLatLng.lat,
+    lng: pendingLatLng.lng,
+    createdAt: Date.now()
+  };
+  try{
+    await push(pinsRef, payload);
+    closeSheet();
+    showToast('登録したよ！');
+  }catch(err){
+    showToast('保存に失敗したよ…');
+    console.error(err);
+  }
+});
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
