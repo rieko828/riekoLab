@@ -52,6 +52,41 @@ body{
 }
 .live-dot{width:6px; height:6px; border-radius:50%; background:#7ee0a0; animation:pulse 1.6s infinite;}
 @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.3;}}
+.header-actions{display:flex; align-items:center; gap:8px;}
+.list-toggle{
+  display:flex; align-items:center; gap:5px; font-size:.68rem; font-weight:700;
+  color:#fff; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+  padding:6px 12px; border-radius:100px; cursor:pointer; font-family:inherit;
+}
+
+/* ── list panel ── */
+.list-panel{
+  position:fixed; inset:0; background:rgba(15,28,46,.42); z-index:800;
+  display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.list-panel.open{opacity:1; pointer-events:auto;}
+.list-sheet{
+  width:100%; max-width:520px; background:var(--paper); border-radius:24px 24px 0 0;
+  padding:18px 18px 20px; box-shadow:0 -10px 40px rgba(15,28,46,.3);
+  transform:translateY(100%); transition:transform .25s cubic-bezier(.4,.2,.2,1);
+  max-height:82vh; display:flex; flex-direction:column;
+}
+.list-panel.open .list-sheet{transform:translateY(0);}
+.list-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.list-head h2{font-family:'Zen Maru Gothic',sans-serif; font-size:1rem;}
+.list-close{background:var(--paper-dim); border:none; border-radius:100px; padding:7px 14px; font-size:.72rem; font-weight:700; color:var(--muted); cursor:pointer;}
+.list-scroll{overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+.list-empty{text-align:center; color:var(--muted); font-size:.8rem; padding:30px 0;}
+.list-item{
+  background:#fff; border:1px solid var(--line); border-radius:16px; padding:13px 15px;
+  cursor:pointer; box-shadow:var(--shadow); text-align:left;
+}
+.list-item h3{font-family:'Zen Maru Gothic',sans-serif; font-size:.92rem; margin-bottom:4px;}
+.list-item .li-tags{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:5px;}
+.list-item .li-tag{font-size:.58rem; font-weight:700; padding:2px 8px; border-radius:100px; color:#fff;}
+.list-item .li-memo{font-size:.74rem; color:var(--ink); line-height:1.5; margin-bottom:5px;}
+.list-item .li-meta{font-size:.64rem; color:var(--muted);}
 
 /* ── filter chips ── */
 .chips{display:flex; gap:6px; overflow-x:auto; margin-top:12px; padding-bottom:2px; scrollbar-width:none;}
@@ -156,7 +191,10 @@ body{
       <h1>みんなの近所マップ</h1>
       <div class="tag">high5メンバーでお気に入りを持ち寄る地図</div>
     </div>
-    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    <div class="header-actions">
+      <button class="list-toggle" id="btnList">📋 一覧</button>
+      <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    </div>
   </div>
   <div class="chips" id="chips">
     <div class="chip active" data-tag="all">すべて</div>
@@ -204,6 +242,16 @@ body{
       <button class="btn btn-cancel" id="btnCancelSheet">やめる</button>
       <button class="btn btn-save" id="btnSave" disabled>この場所を登録</button>
     </div>
+  </div>
+</div>
+
+<div class="list-panel" id="listPanel">
+  <div class="list-sheet">
+    <div class="list-head">
+      <h2>登録済み一覧</h2>
+      <button class="list-close" id="btnCloseList">閉じる</button>
+    </div>
+    <div class="list-scroll" id="listScroll"></div>
   </div>
 </div>
 
@@ -255,7 +303,9 @@ function makeIcon(tags){
 }
 
 let markers = {};      // id -> {marker, tags}
+let pinsData = {};     // id -> full pin object (for list view)
 let activeFilter = 'all';
+let listOpen = false;
 
 function applyFilter(){
   Object.values(markers).forEach(({marker, tags})=>{
@@ -272,6 +322,7 @@ document.getElementById('chips').addEventListener('click', (e)=>{
   chip.classList.add('active');
   activeFilter = chip.dataset.tag;
   applyFilter();
+  if(listOpen) renderList();
 });
 
 function escapeHtml(s){
@@ -296,6 +347,7 @@ function popupHtml(id, p){
 onValue(pinsRef, (snapshot)=>{
   const data = snapshot.val() || {};
   const seenIds = new Set(Object.keys(data));
+  pinsData = data;
 
   // 消えたピンを地図から除去
   Object.keys(markers).forEach(id=>{
@@ -326,10 +378,64 @@ onValue(pinsRef, (snapshot)=>{
   });
 
   applyFilter();
+  if(listOpen) renderList();
 }, (err)=>{
   showToast('データベースに接続できませんでした。Firebase設定を確認してね');
   console.error(err);
 });
+
+/* ── 一覧パネル ── */
+const listPanel = document.getElementById('listPanel');
+const listScroll = document.getElementById('listScroll');
+
+function renderList(){
+  const entries = Object.entries(pinsData)
+    .filter(([id, p]) => activeFilter==='all' || (p.tags||[]).includes(activeFilter))
+    .sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
+
+  if(entries.length === 0){
+    listScroll.innerHTML = `<div class="list-empty">まだ登録された場所がないよ</div>`;
+    return;
+  }
+
+  listScroll.innerHTML = entries.map(([id, p])=>{
+    const tagsHtml = (p.tags||[]).map(t=>`<span class="li-tag" style="background:${TAG_COLORS[t]||'#7a8696'}">${escapeHtml(t)}</span>`).join('');
+    const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) : '';
+    return `
+      <button class="list-item" data-id="${id}">
+        <h3>${escapeHtml(p.name)}</h3>
+        <div class="li-tags">${tagsHtml}</div>
+        ${p.memo ? `<div class="li-memo">${escapeHtml(p.memo)}</div>` : ''}
+        <div class="li-meta">by ${escapeHtml(p.postedBy||'匿名')} ・ ${dateStr}</div>
+      </button>`;
+  }).join('');
+}
+
+listScroll.addEventListener('click', (e)=>{
+  const item = e.target.closest('.list-item');
+  if(!item) return;
+  const id = item.dataset.id;
+  const p = pinsData[id];
+  if(!p) return;
+  closeList();
+  map.setView([p.lat, p.lng], 17);
+  const entry = markers[id];
+  if(entry) entry.marker.openPopup();
+});
+
+function openList(){
+  listOpen = true;
+  renderList();
+  listPanel.classList.add('open');
+}
+function closeList(){
+  listOpen = false;
+  listPanel.classList.remove('open');
+}
+
+document.getElementById('btnList').addEventListener('click', openList);
+document.getElementById('btnCloseList').addEventListener('click', closeList);
+listPanel.addEventListener('click', (e)=>{ if(e.target===listPanel) closeList(); });
 
 /* ── ピン設置フロー ── */
 let placing = false;
