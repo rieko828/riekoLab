@@ -187,6 +187,7 @@ body{
 .pin-pop .pop-memo{font-size:.76rem; color:var(--ink); line-height:1.5; margin-bottom:6px;}
 .pin-pop .pop-meta{font-size:.65rem; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
 .pin-pop .pop-del{background:none; border:none; color:var(--rose); font-size:.68rem; font-weight:700; cursor:pointer; padding:2px;}
+.pin-pop .pop-edit{background:none; border:none; color:var(--teal); font-size:.68rem; font-weight:700; cursor:pointer; padding:2px; margin-right:4px;}
 
 .toast{
   position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
@@ -225,7 +226,7 @@ body{
 
 <div class="sheet-backdrop" id="sheetBackdrop">
   <div class="sheet">
-    <h2>新しい場所を登録</h2>
+    <h2 id="sheetTitle">新しい場所を登録</h2>
     <div class="field">
       <label>場所の名前</label>
       <input type="text" id="fName" placeholder="例：〇〇カフェ">
@@ -237,6 +238,10 @@ body{
     <div class="field">
       <label>メモ（おすすめポイントなど）</label>
       <textarea id="fMemo" placeholder="例：窓際の席が海を見渡せて最高"></textarea>
+    </div>
+    <div class="field">
+      <label>リンク（食べログ・公式サイトなど、任意）</label>
+      <input type="text" id="fUrl" placeholder="https://...">
     </div>
     <div class="field">
       <label>投稿者名</label>
@@ -411,7 +416,10 @@ function popupHtml(id, p){
       ${linkHtml}
       <div class="pop-meta">
         <span>by ${escapeHtml(p.postedBy||'匿名')}</span>
-        <button class="pop-del" data-id="${id}">削除</button>
+        <span>
+          <button class="pop-edit" data-id="${id}">編集</button>
+          <button class="pop-del" data-id="${id}">削除</button>
+        </span>
       </div>
     </div>`;
 }
@@ -440,11 +448,16 @@ onValue(pinsRef, (snapshot)=>{
     const marker = L.marker([p.lat, p.lng], { icon: makeIcon(p.tags||[]) }).addTo(map);
     marker.bindPopup(popupHtml(id, p));
     marker.on('popupopen', ()=>{
-      const btn = document.querySelector(`.pop-del[data-id="${id}"]`);
-      if(btn) btn.addEventListener('click', ()=>{
+      const delBtn = document.querySelector(`.pop-del[data-id="${id}"]`);
+      if(delBtn) delBtn.addEventListener('click', ()=>{
         if(confirm('この場所を削除しますか？')){
           remove(ref(db, 'pins/' + id));
         }
+      });
+      const editBtn = document.querySelector(`.pop-edit[data-id="${id}"]`);
+      if(editBtn) editBtn.addEventListener('click', ()=>{
+        map.closePopup();
+        openEditSheet(id);
       });
     });
     markers[id] = { marker, tags: p.tags || [] };
@@ -526,12 +539,15 @@ listPanel.addEventListener('click', (e)=>{ if(e.target===listPanel) closeList();
 let placing = false;
 let pendingLatLng = null;
 let selectedTags = [];
+let editingId = null;
 
 const fab = document.getElementById('fabAdd');
 const placeBanner = document.getElementById('placeBanner');
 const sheetBackdrop = document.getElementById('sheetBackdrop');
+const sheetTitle = document.getElementById('sheetTitle');
 const fName = document.getElementById('fName');
 const fMemo = document.getElementById('fMemo');
+const fUrl = document.getElementById('fUrl');
 const fPoster = document.getElementById('fPoster');
 const btnSave = document.getElementById('btnSave');
 
@@ -559,13 +575,33 @@ map.on('click', (e)=>{
 });
 
 function openSheet(){
-  fName.value = ''; fMemo.value = '';
+  editingId = null;
+  sheetTitle.textContent = '新しい場所を登録';
+  btnSave.textContent = 'この場所を登録';
+  fName.value = ''; fMemo.value = ''; fUrl.value = ''; fPoster.value = '';
   selectedTags = [];
   renderTagPicker();
   validateForm();
   sheetBackdrop.classList.add('open');
 }
-function closeSheet(){ sheetBackdrop.classList.remove('open'); }
+
+function openEditSheet(id){
+  const p = pinsData[id];
+  if(!p) return;
+  editingId = id;
+  sheetTitle.textContent = '場所を編集';
+  btnSave.textContent = '変更を保存';
+  fName.value = p.name || '';
+  fMemo.value = p.memo || '';
+  fUrl.value = p.url || '';
+  fPoster.value = p.postedBy || '';
+  selectedTags = [...(p.tags || [])];
+  renderTagPicker();
+  validateForm();
+  sheetBackdrop.classList.add('open');
+}
+
+function closeSheet(){ sheetBackdrop.classList.remove('open'); editingId = null; }
 
 document.getElementById('btnCancelSheet').addEventListener('click', closeSheet);
 sheetBackdrop.addEventListener('click', (e)=>{ if(e.target===sheetBackdrop) closeSheet(); });
@@ -722,11 +758,33 @@ function validateForm(){
 }
 
 btnSave.addEventListener('click', async ()=>{
+  if(editingId){
+    const existing = pinsData[editingId];
+    if(!existing) return;
+    const payload = {
+      name: fName.value.trim(),
+      tags: selectedTags,
+      memo: fMemo.value.trim(),
+      url: fUrl.value.trim(),
+      postedBy: fPoster.value.trim() || '匿名'
+    };
+    try{
+      await update(ref(db, 'pins/' + editingId), payload);
+      closeSheet();
+      showToast('変更を保存したよ！');
+    }catch(err){
+      showToast('保存に失敗したよ…');
+      console.error(err);
+    }
+    return;
+  }
+
   if(!pendingLatLng) return;
   const payload = {
     name: fName.value.trim(),
     tags: selectedTags,
     memo: fMemo.value.trim(),
+    url: fUrl.value.trim(),
     postedBy: fPoster.value.trim() || '匿名',
     lat: pendingLatLng.lat,
     lng: pendingLatLng.lng,
