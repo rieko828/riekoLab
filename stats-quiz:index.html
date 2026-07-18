@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>統計検定3級カード | riekoLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bay:#1b2a41;
+  --bay-deep:#0f1c2e;
+  --paper:#f6f1e7;
+  --paper-dim:#efe8da;
+  --coral:#e07a5f;
+  --teal:#5b9aa0;
+  --rose:#d96c8f;
+  --amber:#e8a14b;
+  --ink:#243447;
+  --muted:#7a8696;
+  --line:rgba(27,42,65,.10);
+  --shadow:0 10px 30px rgba(15,28,46,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(27,42,65,.06) 1px, transparent 0) 0 0/22px 22px,
+    var(--paper);
+  min-height:100vh;
+  display:flex; flex-direction:column; align-items:center;
+  padding:0 0 60px;
+}
+
+/* ── header ── */
+.hero{
+  width:100%;
+  background:linear-gradient(135deg, var(--bay-deep) 0%, var(--bay) 55%, #5b4a5f 95%, var(--teal) 140%);
+  color:#fff;
+  padding:26px 22px 30px;
+  border-radius:0 0 28px 28px;
+  box-shadow:0 8px 26px rgba(15,28,46,.26);
+}
+.hero-inner{max-width:520px; margin:0 auto;}
+.back-link{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:.72rem; color:rgba(255,255,255,.68); text-decoration:none;
+  font-weight:500; margin-bottom:14px;
+}
+.hero-top{display:flex; align-items:center; gap:14px;}
+.curve{flex:none;}
+.eyebrow{font-size:.6rem; letter-spacing:.32em; color:rgba(255,255,255,.5); font-weight:700; margin-bottom:6px;}
+.hero h1{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:1.5rem; letter-spacing:.02em; line-height:1.25;}
+.hero .tag{margin-top:6px; font-size:.76rem; color:rgba(255,255,255,.72); font-weight:500;}
+
+/* ── category chips ── */
+.wrap{width:100%; max-width:520px; padding:20px 18px 0;}
+.chips{display:flex; gap:7px; overflow-x:auto; padding:2px 2px 4px; scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex:none; font-size:.72rem; font-weight:700; padding:8px 14px;
+  border-radius:100px; border:1px solid var(--line); background:#fff;
+  color:var(--muted); white-space:nowrap; cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.chip.active{background:var(--bay); color:#fff; border-color:var(--bay);}
+
+/* ── progress row ── */
+.progress-row{display:flex; align-items:center; justify-content:space-between; margin:16px 4px 12px;}
+.count-label{font-size:.68rem; font-weight:700; letter-spacing:.08em; color:var(--muted);}
+.dots{display:flex; gap:4px;}
+.dot{width:6px; height:6px; border-radius:50%; background:var(--line);}
+.dot.done{background:var(--teal);}
+.dot.cur{background:var(--coral);}
+
+/* ── card ── */
+.stage{perspective:1400px; margin:6px 0 18px;}
+.card{
+  position:relative; width:100%; min-height:230px;
+  cursor:pointer;
+}
+.card-face{
+  position:absolute; inset:0;
+  background:#fff; border:1px solid var(--line); border-radius:20px;
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  padding:26px 24px;
+  backface-visibility:hidden;
+  transition:transform .5s cubic-bezier(.4,.2,.2,1);
+}
+.card-face.front{transform:rotateY(0deg);}
+.card-face.back{transform:rotateY(180deg); background:var(--bay-deep); color:#fff; border-color:var(--bay-deep);}
+.card.flipped .card-face.front{transform:rotateY(-180deg);}
+.card.flipped .card-face.back{transform:rotateY(0deg);}
+
+.face-eyebrow{font-size:.62rem; font-weight:700; letter-spacing:.14em; color:var(--coral); margin-bottom:14px;}
+.card-face.back .face-eyebrow{color:var(--amber);}
+.face-text{
+  font-family:'Zen Maru Gothic',sans-serif; font-weight:700;
+  font-size:1.14rem; line-height:1.6; flex:1; display:flex; align-items:center;
+}
+.face-hint{font-size:.68rem; color:var(--muted); text-align:center; margin-top:10px;}
+.card-face.back .face-hint{color:rgba(255,255,255,.5);}
+
+.corner{position:absolute; top:0; right:0; width:26px; height:26px;
+  background:linear-gradient(135deg, transparent 50%, var(--paper-dim) 50%);
+  border-radius:0 20px 0 0;}
+
+/* ── actions ── */
+.actions{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;}
+.btn{
+  border:none; border-radius:14px; padding:14px 10px;
+  font-family:'Zen Kaku Gothic New',sans-serif; font-weight:700; font-size:.86rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  transition:transform .12s, opacity .12s;
+}
+.btn:active{transform:scale(.97);}
+.btn-again{background:var(--paper-dim); color:var(--ink);}
+.btn-got{background:var(--teal); color:#fff;}
+.btn[disabled]{opacity:.35; pointer-events:none;}
+
+.skip-row{display:flex; justify-content:center; margin-top:14px;}
+.skip{background:none; border:none; font-size:.72rem; color:var(--muted); font-weight:700; cursor:pointer; padding:8px;}
+
+/* ── done state ── */
+.done-panel{
+  background:#fff; border:1px solid var(--line); border-radius:20px;
+  box-shadow:var(--shadow); padding:34px 26px; text-align:center;
+}
+.done-panel .big{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:1.3rem; margin-bottom:8px;}
+.done-panel .sub{font-size:.8rem; color:var(--muted); margin-bottom:20px; line-height:1.6;}
+.stat-pair{display:flex; justify-content:center; gap:26px; margin-bottom:22px;}
+.stat-pair div{text-align:center;}
+.stat-pair .num{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.5rem; color:var(--bay);}
+.stat-pair .lbl{font-size:.62rem; color:var(--muted); letter-spacing:.06em; margin-top:2px;}
+.restart{background:var(--coral); color:#fff; border:none; border-radius:14px; padding:13px 26px; font-weight:700; font-size:.85rem; cursor:pointer;}
+
+.hidden{display:none !important;}
+
+.foot{max-width:520px; width:100%; padding:22px 22px 0; text-align:center; color:var(--muted); font-size:.68rem; line-height:1.7;}
+.foot .mark{font-family:'Zen Maru Gothic',sans-serif; color:var(--ink); font-weight:700;}
+
+@media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+@media (min-width:600px){ .hero h1{font-size:1.7rem;} .face-text{font-size:1.24rem;} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <a class="back-link" href="../index.html">← riekoLab</a>
+    <div class="hero-top">
+      <div class="curve">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <path d="M5 36c5-1 8-6 10-11s5-15 9-15 6 9 9 15 6 10 10 11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <line x1="5" y1="40" x2="43" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+          <circle cx="24" cy="14" r="2.4" fill="#e07a5f"/>
+        </svg>
+      </div>
+      <div>
+        <div class="eyebrow">FLASHCARDS</div>
+        <h1>統計検定3級<br>一問一答カード</h1>
+        <div class="tag">タップして裏返す、暗記カード。</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="chips" id="chips"></div>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="count-label" id="countLabel">1 / 6</div>
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <div class="stage">
+      <div class="card" id="card">
+        <div class="card-face front">
+          <div class="corner"></div>
+          <div class="face-eyebrow" id="catLabelFront">記述統計</div>
+          <div class="face-text" id="qText">問題文がここに入ります</div>
+          <div class="face-hint">タップして答えを見る</div>
+        </div>
+        <div class="card-face back">
+          <div class="face-eyebrow">こたえ</div>
+          <div class="face-text" id="aText">答えがここに入ります</div>
+          <div class="face-hint">もう一度タップで問題に戻る</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-again" id="btnAgain">↺ もう一度</button>
+      <button class="btn btn-got" id="btnGot">✓ 覚えた</button>
+    </div>
+    <div class="skip-row"><button class="skip" id="btnShuffle">🔀 このカテゴリをシャッフルして最初から</button></div>
+  </div>
+
+  <div id="donePanel" class="done-panel hidden">
+    <div class="big">お疲れさまでした 🎉</div>
+    <div class="sub">このカテゴリのカードを一周しました。</div>
+    <div class="stat-pair">
+      <div><div class="num" id="doneGot">0</div><div class="lbl">覚えた</div></div>
+      <div><div class="num" id="doneAgain">0</div><div class="lbl">もう一度</div></div>
+    </div>
+    <button class="restart" id="btnRestart">もう一周する</button>
+  </div>
+</div>
+
+<footer class="foot">
+  <span class="mark">riekoLab</span> ・ 統計検定3級対策<br>
+  進捗はこのページを開いている間だけ記録されます。
+</footer>
+
+<script>
+/* ───── カードデータ ─────
+新しいカードを足すときは、この配列に1つオブジェクトを追加するだけ。
+cat: カテゴリ名（チップの表示名と一致させる）
+q: 表面（問題）　a: 裏面（答え）
+*/
+const CARDS = [
+  // 記述統計
+  {cat:'記述統計', q:'データを大きさの順に並べたとき、ちょうど真ん中に来る値を何という？', a:'中央値（メジアン）'},
+  {cat:'記述統計', q:'データの中で最も頻繁に現れる値を何という？', a:'最頻値（モード）'},
+  {cat:'記述統計', q:'各データと平均の差を2乗して平均した値を何という？', a:'分散'},
+  {cat:'記述統計', q:'分散の正の平方根を何という？', a:'標準偏差'},
+  {cat:'記述統計', q:'最大値と最小値の差を何という？', a:'範囲（レンジ）'},
+  {cat:'記述統計', q:'標準偏差を平均で割った値（単位に依存しないばらつきの指標）は？', a:'変動係数'},
+  {cat:'記述統計', q:'データを小さい順に並べて4等分する位置の値を何という？', a:'四分位数'},
+  {cat:'記述統計', q:'第3四分位数から第1四分位数を引いた値を何という？', a:'四分位範囲（IQR）'},
+
+  // データ表現
+  {cat:'データ表現', q:'量的データの分布の形を柱状のグラフで表したものは？', a:'ヒストグラム'},
+  {cat:'データ表現', q:'最小値・第1四分位数・中央値・第3四分位数・最大値を1つの図で表すものは？', a:'箱ひげ図（ボックスプロット）'},
+  {cat:'データ表現', q:'2つの量的変数の関係を点の集まりで表す図は？', a:'散布図'},
+  {cat:'データ表現', q:'データをいくつかの階級（区間）に分け、各階級の度数をまとめた表は？', a:'度数分布表'},
+  {cat:'データ表現', q:'箱ひげ図で「外れ値」として個別に表示される、ひげの外側の点を何という？', a:'外れ値（異常値）'},
+
+  // 相関・回帰
+  {cat:'相関・回帰', q:'2変数の直線的な関係の強さと向きを −1〜1 の範囲で表す指標は？', a:'相関係数（ピアソンの積率相関係数）'},
+  {cat:'相関・回帰', q:'相関係数が0に近いとき、2変数の間には何があるといえる？', a:'直線的な相関がほとんどない（無相関に近い）'},
+  {cat:'相関・回帰', q:'説明変数から目的変数を予測する直線を何という？', a:'回帰直線（回帰式）'},
+  {cat:'相関・回帰', q:'回帰直線がデータをどれだけよく説明しているかを示す 0〜1 の指標は？', a:'決定係数（R²）'},
+  {cat:'相関・回帰', q:'2つの変数が実際には無関係なのに、第3の変数の影響で関係があるように見える現象は？', a:'擬相関（見せかけの相関）'},
+
+  // 確率
+  {cat:'確率', q:'ある事象が起こる確率と起こらない確率の和は常にいくつ？', a:'1'},
+  {cat:'確率', q:'2つの事象が同時に起こり得ないとき、その2つの事象を何という？', a:'排反事象'},
+  {cat:'確率', q:'一方の事象が起こっても他方の起こる確率が変わらないとき、2つの事象は何であるという？', a:'独立'},
+  {cat:'確率', q:'事象Bが起きたという条件のもとで事象Aが起こる確率を何という？', a:'条件付き確率'},
+  {cat:'確率', q:'確率変数がとりうる値とその確率をかけて合計したものを何という？', a:'期待値（平均）'},
+  {cat:'確率', q:'期待値からのばらつきの大きさを表す、確率変数の分散の求め方の基本は？', a:'E[(X−E[X])²]（各値の期待値からの偏差の2乗の期待値）'},
+
+  // 分布
+  {cat:'分布', q:'成功確率が一定の試行をn回独立に行ったときの成功回数が従う分布は？', a:'二項分布'},
+  {cat:'分布', q:'平均を中心に左右対称な釣鐘型の連続分布を何という？', a:'正規分布'},
+  {cat:'分布', q:'平均0、分散1に変換した正規分布を何という？', a:'標準正規分布'},
+  {cat:'分布', q:'正規分布のデータで、平均±1標準偏差の範囲にはおよそ何%のデータが含まれる？', a:'約68%'},
+  {cat:'分布', q:'正規分布のデータで、平均±2標準偏差の範囲にはおよそ何%のデータが含まれる？', a:'約95%'},
+  {cat:'分布', q:'データを標準正規分布に変換する際に使う値（(x−平均)/標準偏差）を何という？', a:'標準化変量（Z得点）'},
+
+  // 標本と推定
+  {cat:'標本と推定', q:'調査の対象となるデータ全体を何という？', a:'母集団'},
+  {cat:'標本と推定', q:'母集団から取り出した一部のデータを何という？', a:'標本（サンプル）'},
+  {cat:'標本と推定', q:'標本の平均から母集団の平均を推測することを何という？', a:'（母平均の）推定'},
+  {cat:'標本と推定', q:'標本サイズを大きくしていくと、標本平均の分布は何分布に近づく？', a:'正規分布（中心極限定理）'},
+  {cat:'標本と推定', q:'母数がある区間に含まれると一定の確率で言える範囲を何という？', a:'信頼区間'},
+  {cat:'標本と推定', q:'標本を無作為に抽出する方法を何という？', a:'無作為抽出（ランダムサンプリング）'},
+
+  // 仮説検定
+  {cat:'仮説検定', q:'「差がない」「効果がない」など、検証したい仮説の反対に立てる仮説を何という？', a:'帰無仮説'},
+  {cat:'仮説検定', q:'検証したい本来の主張を表す仮説を何という？', a:'対立仮説'},
+  {cat:'仮説検定', q:'帰無仮説を誤って棄却する確率の基準を何という？', a:'有意水準（多くは5%や1%）'},
+  {cat:'仮説検定', q:'帰無仮説のもとで、実際に観測された結果以上に極端な値が得られる確率を何という？', a:'p値'},
+  {cat:'仮説検定', q:'p値が有意水準より小さいとき、帰無仮説をどうする？', a:'棄却する'},
+  {cat:'仮説検定', q:'本当は正しい帰無仮説を誤って棄却してしまう誤りを何という？', a:'第一種の過誤'},
+  {cat:'仮説検定', q:'本当は誤っている帰無仮説を棄却できない誤りを何という？', a:'第二種の過誤'},
+];
+
+const CATS = [...new Set(CARDS.map(c=>c.cat))];
+
+let currentCat = CATS[0];
+let deck = [];
+let idx = 0;
+let flipped = false;
+let gotCount = 0;
+let againCount = 0;
+
+const chipsEl = document.getElementById('chips');
+const cardEl = document.getElementById('card');
+const qText = document.getElementById('qText');
+const aText = document.getElementById('aText');
+const catLabelFront = document.getElementById('catLabelFront');
+const countLabel = document.getElementById('countLabel');
+const dotsEl = document.getElementById('dots');
+const quizArea = document.getElementById('quizArea');
+const donePanel = document.getElementById('donePanel');
+
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function renderChips(){
+  chipsEl.innerHTML = '';
+  CATS.forEach(cat=>{
+    const b = document.createElement('button');
+    b.className = 'chip' + (cat===currentCat ? ' active' : '');
+    b.textContent = cat;
+    b.onclick = () => { currentCat = cat; startCategory(); };
+    chipsEl.appendChild(b);
+  });
+}
+
+function startCategory(){
+  deck = shuffle(CARDS.filter(c=>c.cat===currentCat));
+  idx = 0; gotCount = 0; againCount = 0; flipped = false;
+  renderChips();
+  quizArea.classList.remove('hidden');
+  donePanel.classList.add('hidden');
+  renderCard();
+}
+
+function renderDots(){
+  dotsEl.innerHTML = '';
+  deck.forEach((_,i)=>{
+    const d = document.createElement('div');
+    d.className = 'dot' + (i<idx ? ' done' : (i===idx ? ' cur' : ''));
+    dotsEl.appendChild(d);
+  });
+}
+
+function renderCard(){
+  if(idx >= deck.length){ showDone(); return; }
+  const c = deck[idx];
+  catLabelFront.textContent = c.cat;
+  qText.textContent = c.q;
+  aText.textContent = c.a;
+  cardEl.classList.remove('flipped');
+  flipped = false;
+  countLabel.textContent = `${idx+1} / ${deck.length}`;
+  renderDots();
+}
+
+function showDone(){
+  quizArea.classList.add('hidden');
+  donePanel.classList.remove('hidden');
+  document.getElementById('doneGot').textContent = gotCount;
+  document.getElementById('doneAgain').textContent = againCount;
+}
+
+cardEl.addEventListener('click', ()=>{
+  flipped = !flipped;
+  cardEl.classList.toggle('flipped', flipped);
+});
+
+document.getElementById('btnGot').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  gotCount++;
+  idx++;
+  renderCard();
+});
+
+document.getElementById('btnAgain').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  againCount++;
+  const c = deck.splice(idx,1)[0];
+  const insertAt = Math.min(deck.length, idx + 2 + Math.floor(Math.random()*2));
+  deck.splice(insertAt, 0, c);
+  renderCard();
+});
+
+document.getElementById('btnShuffle').addEventListener('click', startCategory);
+document.getElementById('btnRestart').addEventListener('click', startCategory);
+
+startCategory();
+</script>
+</body>
+</html>
