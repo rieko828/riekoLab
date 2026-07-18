@@ -97,6 +97,7 @@ body{
   color:rgba(255,255,255,.8); white-space:nowrap; cursor:pointer;
 }
 .chip.active{background:#fff; color:var(--bay); border-color:#fff;}
+.chip.chip-add{border-style:dashed; background:transparent;}
 
 /* ── map ── */
 .map-wrap{flex:1; position:relative;}
@@ -154,6 +155,20 @@ body{
   font-size:.78rem; font-weight:700; color:var(--muted); cursor:pointer; background:#fff;
 }
 .tag-opt.on{color:#fff;}
+.tag-opt.tag-add{border-style:dashed; color:var(--muted);}
+
+.tag-manage-list{display:flex; flex-direction:column; gap:8px; max-height:34vh; overflow-y:auto;}
+.tag-manage-row{display:flex; align-items:center; gap:7px;}
+.tmr-emoji{
+  flex:none; width:36px; height:36px; border-radius:10px; border:1px solid var(--line);
+  background:var(--paper); font-size:1rem; cursor:pointer;
+}
+.tmr-name{
+  flex:1; min-width:0; border:1px solid var(--line); border-radius:10px; padding:8px 10px;
+  font-family:inherit; font-size:.84rem; color:var(--ink); background:#fff;
+}
+.tmr-color{flex:none; width:26px; height:26px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--line); cursor:pointer;}
+.tmr-del{flex:none; background:none; border:none; color:var(--rose); font-size:1rem; cursor:pointer; padding:4px;}
 .sheet-actions{display:flex; gap:10px; margin-top:6px;}
 .btn{
   flex:1; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:.86rem;
@@ -196,13 +211,7 @@ body{
       <div class="live-badge"><span class="live-dot"></span>LIVE</div>
     </div>
   </div>
-  <div class="chips" id="chips">
-    <div class="chip active" data-tag="all">すべて</div>
-    <div class="chip" data-tag="カフェ">☕ カフェ</div>
-    <div class="chip" data-tag="ごはん">🍚 ごはん</div>
-    <div class="chip" data-tag="デート">💛 デート</div>
-    <div class="chip" data-tag="その他">📍 その他</div>
-  </div>
+  <div class="chips" id="chips"></div>
 </header>
 
 <div class="map-wrap">
@@ -223,12 +232,7 @@ body{
     </div>
     <div class="field">
       <label>タグ（複数選べます）</label>
-      <div class="tag-picker" id="tagPicker">
-        <div class="tag-opt" data-tag="カフェ" data-color="#5b9aa0">☕ カフェ</div>
-        <div class="tag-opt" data-tag="ごはん" data-color="#e07a5f">🍚 ごはん</div>
-        <div class="tag-opt" data-tag="デート" data-color="#d96c8f">💛 デート</div>
-        <div class="tag-opt" data-tag="その他" data-color="#e8a14b">📍 その他</div>
-      </div>
+      <div class="tag-picker" id="tagPicker"></div>
     </div>
     <div class="field">
       <label>メモ（おすすめポイントなど）</label>
@@ -241,6 +245,24 @@ body{
     <div class="sheet-actions">
       <button class="btn btn-cancel" id="btnCancelSheet">やめる</button>
       <button class="btn btn-save" id="btnSave" disabled>この場所を登録</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="tagSheetBackdrop">
+  <div class="sheet">
+    <h2>タグを管理</h2>
+    <div id="tagManageList" class="tag-manage-list"></div>
+    <div class="field" style="margin-top:16px;">
+      <label>新しいタグを作る</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="tagEmoji" placeholder="🏷️" maxlength="4" style="width:56px; text-align:center; flex:none;">
+        <input type="text" id="tagName" placeholder="タグ名" style="flex:1;">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" id="btnCancelTag">閉じる</button>
+      <button class="btn btn-save" id="btnSaveTag" disabled>追加する</button>
     </div>
   </div>
 </div>
@@ -277,11 +299,13 @@ const firebaseConfig = {
 };
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, remove, get, set, update } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const pinsRef = ref(db, "pins");
+const tagsRef = ref(db, "tags");
+const metaRef = ref(db, "meta/tagsSeeded");
 
 /* ── 地図の初期化 ── */
 const map = L.map('map', { zoomControl: false }).setView([35.6478, 139.7568], 15); // 港区海岸3丁目付近
@@ -291,10 +315,45 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
 }).addTo(map);
 
-const TAG_COLORS = { 'カフェ':'#5b9aa0', 'ごはん':'#e07a5f', 'デート':'#d96c8f', 'その他':'#e8a14b' };
+/* ── タグ管理（Firebaseに保存、みんなで自由に追加できる） ── */
+const DEFAULT_TAGS = [
+  {name:'カフェ', emoji:'☕', color:'#5b9aa0'},
+  {name:'ごはん', emoji:'🍚', color:'#e07a5f'},
+  {name:'デート', emoji:'💛', color:'#d96c8f'},
+  {name:'その他', emoji:'📍', color:'#e8a14b'},
+  {name:'カジュアル', emoji:'🍻', color:'#8a6fb3'},
+  {name:'フォーマル', emoji:'🍽️', color:'#3f5a7d'},
+  {name:'役員向け', emoji:'👔', color:'#b8860b'},
+  {name:'ランチ', emoji:'🍱', color:'#6b9b5e'}
+];
+const PALETTE = ['#5b9aa0','#e07a5f','#d96c8f','#e8a14b','#8a6fb3','#3f5a7d','#b8860b','#6b9b5e','#4d8b7c','#a8557a','#5f7d8f','#c2703d'];
+
+let tagsData = {}; // key -> {name, emoji, color}
+
+function getTagColor(name){
+  const t = Object.values(tagsData).find(t=>t.name===name);
+  return t ? t.color : '#7a8696';
+}
+function getTagEmoji(name){
+  const t = Object.values(tagsData).find(t=>t.name===name);
+  return t ? t.emoji : '🏷️';
+}
+
+// 初回のみ、デフォルトタグを書き込む
+(async function seedTagsIfNeeded(){
+  try{
+    const metaSnap = await get(metaRef);
+    if(!metaSnap.exists()){
+      for(const t of DEFAULT_TAGS){
+        await push(tagsRef, t);
+      }
+      await set(metaRef, true);
+    }
+  }catch(err){ console.error('タグの初期化に失敗', err); }
+})();
 
 function makeIcon(tags){
-  const color = TAG_COLORS[tags[0]] || '#1b2a41';
+  const color = getTagColor(tags[0]) || '#1b2a41';
   return L.divIcon({
     className: '',
     html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);box-shadow:0 3px 8px rgba(15,28,46,.35);border:2px solid #fff;"></div>`,
@@ -315,9 +374,21 @@ function applyFilter(){
   });
 }
 
+function renderChips(){
+  const chipsEl = document.getElementById('chips');
+  const tagEntries = Object.values(tagsData);
+  let html = `<div class="chip${activeFilter==='all' ? ' active' : ''}" data-tag="all">すべて</div>`;
+  tagEntries.forEach(t=>{
+    html += `<div class="chip${activeFilter===t.name ? ' active' : ''}" data-tag="${escapeHtml(t.name)}">${t.emoji||'🏷️'} ${escapeHtml(t.name)}</div>`;
+  });
+  html += `<div class="chip chip-add" data-tag="__add__">🏷️ タグ管理</div>`;
+  chipsEl.innerHTML = html;
+}
+
 document.getElementById('chips').addEventListener('click', (e)=>{
   const chip = e.target.closest('.chip');
   if(!chip) return;
+  if(chip.classList.contains('chip-add')){ openTagSheet(); return; }
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   chip.classList.add('active');
   activeFilter = chip.dataset.tag;
@@ -330,12 +401,14 @@ function escapeHtml(s){
 }
 
 function popupHtml(id, p){
-  const tagsHtml = (p.tags||[]).map(t=>`<span class="pop-tag" style="background:${TAG_COLORS[t]||'#7a8696'}">${escapeHtml(t)}</span>`).join('');
+  const tagsHtml = (p.tags||[]).map(t=>`<span class="pop-tag" style="background:${getTagColor(t)}">${escapeHtml(t)}</span>`).join('');
+  const linkHtml = p.url ? `<div class="pop-memo"><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener" style="color:var(--teal);">詳細を見る →</a></div>` : '';
   return `
     <div class="pin-pop">
       <h3>${escapeHtml(p.name)}</h3>
       <div class="pop-tags">${tagsHtml}</div>
       ${p.memo ? `<div class="pop-memo">${escapeHtml(p.memo)}</div>` : ''}
+      ${linkHtml}
       <div class="pop-meta">
         <span>by ${escapeHtml(p.postedBy||'匿名')}</span>
         <button class="pop-del" data-id="${id}">削除</button>
@@ -384,6 +457,18 @@ onValue(pinsRef, (snapshot)=>{
   console.error(err);
 });
 
+/* ── タグのリアルタイム受信 ── */
+onValue(tagsRef, (snapshot)=>{
+  tagsData = snapshot.val() || {};
+  renderChips();
+  renderTagPicker();
+  if(tagSheetOpen) renderTagManageList();
+  Object.entries(markers).forEach(([id, entry])=>{
+    entry.marker.setIcon(makeIcon(entry.tags));
+  });
+  if(listOpen) renderList();
+});
+
 /* ── 一覧パネル ── */
 const listPanel = document.getElementById('listPanel');
 const listScroll = document.getElementById('listScroll');
@@ -399,7 +484,7 @@ function renderList(){
   }
 
   listScroll.innerHTML = entries.map(([id, p])=>{
-    const tagsHtml = (p.tags||[]).map(t=>`<span class="li-tag" style="background:${TAG_COLORS[t]||'#7a8696'}">${escapeHtml(t)}</span>`).join('');
+    const tagsHtml = (p.tags||[]).map(t=>`<span class="li-tag" style="background:${getTagColor(t)}">${escapeHtml(t)}</span>`).join('');
     const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) : '';
     return `
       <button class="list-item" data-id="${id}">
@@ -476,10 +561,7 @@ map.on('click', (e)=>{
 function openSheet(){
   fName.value = ''; fMemo.value = '';
   selectedTags = [];
-  document.querySelectorAll('.tag-opt').forEach(el=>{
-    el.classList.remove('on');
-    el.style.background = '#fff'; el.style.color = 'var(--muted)'; el.style.borderColor='var(--line)';
-  });
+  renderTagPicker();
   validateForm();
   sheetBackdrop.classList.add('open');
 }
@@ -488,14 +570,150 @@ function closeSheet(){ sheetBackdrop.classList.remove('open'); }
 document.getElementById('btnCancelSheet').addEventListener('click', closeSheet);
 sheetBackdrop.addEventListener('click', (e)=>{ if(e.target===sheetBackdrop) closeSheet(); });
 
+function renderTagPicker(){
+  const picker = document.getElementById('tagPicker');
+  const tagEntries = Object.values(tagsData);
+  let html = tagEntries.map(t=>{
+    const on = selectedTags.includes(t.name);
+    const style = on ? `background:${t.color}; color:#fff; border-color:${t.color};` : '';
+    return `<div class="tag-opt${on?' on':''}" data-tag="${escapeHtml(t.name)}" data-color="${t.color}" style="${style}">${t.emoji||'🏷️'} ${escapeHtml(t.name)}</div>`;
+  }).join('');
+  html += `<div class="tag-opt tag-add" data-tag="__add__">🏷️ タグ管理</div>`;
+  picker.innerHTML = html;
+}
+
 document.getElementById('tagPicker').addEventListener('click', (e)=>{
   const opt = e.target.closest('.tag-opt');
   if(!opt) return;
+  if(opt.classList.contains('tag-add')){ openTagSheet(); return; }
   const t = opt.dataset.tag, color = opt.dataset.color;
   const on = opt.classList.toggle('on');
   if(on){ selectedTags.push(t); opt.style.background = color; opt.style.color = '#fff'; opt.style.borderColor = color; }
   else{ selectedTags = selectedTags.filter(x=>x!==t); opt.style.background = '#fff'; opt.style.color = 'var(--muted)'; opt.style.borderColor='var(--line)'; }
   validateForm();
+});
+
+/* ── 新しいタグを作る／既存タグの管理 ── */
+const tagSheetBackdrop = document.getElementById('tagSheetBackdrop');
+const tagEmojiInput = document.getElementById('tagEmoji');
+const tagNameInput = document.getElementById('tagName');
+const btnSaveTag = document.getElementById('btnSaveTag');
+let tagSheetOpen = false;
+
+function openTagSheet(){
+  tagEmojiInput.value = '';
+  tagNameInput.value = '';
+  btnSaveTag.disabled = true;
+  tagSheetOpen = true;
+  renderTagManageList();
+  tagSheetBackdrop.classList.add('open');
+}
+function closeTagSheet(){
+  tagSheetOpen = false;
+  tagSheetBackdrop.classList.remove('open');
+}
+
+tagNameInput.addEventListener('input', ()=>{ btnSaveTag.disabled = !tagNameInput.value.trim(); });
+document.getElementById('btnCancelTag').addEventListener('click', closeTagSheet);
+tagSheetBackdrop.addEventListener('click', (e)=>{ if(e.target===tagSheetBackdrop) closeTagSheet(); });
+
+function renderTagManageList(){
+  const list = document.getElementById('tagManageList');
+  list.innerHTML = Object.entries(tagsData).map(([key, t])=>`
+    <div class="tag-manage-row" data-key="${key}">
+      <button type="button" class="tmr-emoji" data-key="${key}" title="絵文字を変える">${t.emoji||'🏷️'}</button>
+      <input type="text" class="tmr-name" data-key="${key}" value="${escapeHtml(t.name)}">
+      <button type="button" class="tmr-color" data-key="${key}" style="background:${t.color}" title="色を変える"></button>
+      <button type="button" class="tmr-del" data-key="${key}" title="削除">🗑</button>
+    </div>`).join('');
+}
+
+// 絵文字変更
+document.getElementById('tagManageList').addEventListener('click', async (e)=>{
+  const emojiBtn = e.target.closest('.tmr-emoji');
+  const colorBtn = e.target.closest('.tmr-color');
+  const delBtn = e.target.closest('.tmr-del');
+
+  if(emojiBtn){
+    const key = emojiBtn.dataset.key;
+    const current = tagsData[key]?.emoji || '🏷️';
+    const next = prompt('絵文字を入力してね', current);
+    if(next && next.trim()){
+      try{ await update(ref(db, 'tags/' + key), { emoji: next.trim() }); }
+      catch(err){ showToast('更新に失敗したよ…'); console.error(err); }
+    }
+    return;
+  }
+
+  if(colorBtn){
+    const key = colorBtn.dataset.key;
+    const current = tagsData[key]?.color;
+    const idx = PALETTE.indexOf(current);
+    const nextColor = PALETTE[(idx + 1 + PALETTE.length) % PALETTE.length];
+    try{ await update(ref(db, 'tags/' + key), { color: nextColor }); }
+    catch(err){ showToast('更新に失敗したよ…'); console.error(err); }
+    return;
+  }
+
+  if(delBtn){
+    const key = delBtn.dataset.key;
+    const name = tagsData[key]?.name || '';
+    if(confirm(`「${name}」タグを削除する？\n(このタグが付いている場所は残りますが、タグ表示がグレーになります)`)){
+      try{ await remove(ref(db, 'tags/' + key)); }
+      catch(err){ showToast('削除に失敗したよ…'); console.error(err); }
+    }
+    return;
+  }
+});
+
+// タグ名の変更（変更確定時に、そのタグを使っているピンも一括更新）
+document.getElementById('tagManageList').addEventListener('change', async (e)=>{
+  const input = e.target.closest('.tmr-name');
+  if(!input) return;
+  const key = input.dataset.key;
+  const oldName = tagsData[key]?.name;
+  const newName = input.value.trim();
+
+  if(!newName){ input.value = oldName; return; }
+  if(newName === oldName) return;
+  if(Object.values(tagsData).some(t=>t.name===newName)){
+    showToast('その名前のタグはもうあるよ');
+    input.value = oldName;
+    return;
+  }
+
+  try{
+    await update(ref(db, 'tags/' + key), { name: newName });
+    // このタグを使っている既存のピンも一括で名前を差し替える
+    const affected = Object.entries(pinsData).filter(([id, p]) => (p.tags||[]).includes(oldName));
+    for(const [id, p] of affected){
+      const newTags = p.tags.map(t => t===oldName ? newName : t);
+      await set(ref(db, 'pins/' + id + '/tags'), newTags);
+    }
+    showToast('タグ名を変更したよ！');
+  }catch(err){
+    showToast('変更に失敗したよ…');
+    console.error(err);
+  }
+});
+
+btnSaveTag.addEventListener('click', async ()=>{
+  const name = tagNameInput.value.trim();
+  if(!name) return;
+  if(Object.values(tagsData).some(t=>t.name===name)){
+    showToast('そのタグはもうあるよ');
+    return;
+  }
+  const emoji = tagEmojiInput.value.trim() || '🏷️';
+  const color = PALETTE[Object.keys(tagsData).length % PALETTE.length];
+  try{
+    await push(tagsRef, { name, emoji, color });
+    tagEmojiInput.value = ''; tagNameInput.value = ''; btnSaveTag.disabled = true;
+    showToast('タグを作ったよ！');
+  }catch(err){
+    showToast('タグの作成に失敗したよ…');
+    console.error(err);
+  }
 });
 
 fName.addEventListener('input', validateForm);
