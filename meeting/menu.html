@@ -68,8 +68,22 @@ h1{font-size:clamp(24px,4vw,32px);font-weight:900;margin:0;line-height:1.3}
 .human .when{color:var(--work)}
 .human ol{margin:0;padding-left:1.3em;font-size:15px}
 .human li{margin-bottom:4px}
-.field{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--sub)}
-.field input{flex:1;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.cal{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--bg)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-head b{font-size:15px}
+.cal-nav{font:inherit;font-size:18px;line-height:1;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.cal-nav:disabled{opacity:.35;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cal-grid .wd{font-size:12px;color:var(--sub);padding:2px 0}
+.cal-grid .wd.sun,.cal-grid .d.sun{color:#C0443A}
+.cal-grid .wd.sat,.cal-grid .d.sat{color:var(--accent)}
+.cal-grid .d{font:inherit;font-size:14px;padding:7px 0;border-radius:8px;border:0;background:transparent;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.cal-grid .d:hover:not(:disabled){background:var(--accent-bg)}
+.cal-grid .d:disabled{opacity:.3;cursor:default}
+.cal-grid .d.today{box-shadow:inset 0 0 0 1.5px var(--line)}
+.cal-grid .d.sel,.cal-grid .d.sel.sun,.cal-grid .d.sel.sat{background:var(--accent);color:var(--paper)}
+.picked{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+.picked.empty{font-weight:400;color:var(--sub)}
 
 .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .links a{font-size:14px;font-weight:500;color:var(--accent);background:var(--accent-bg);border-radius:999px;padding:6px 14px;text-decoration:none}
@@ -130,7 +144,8 @@ footer{margin-top:18px;font-size:13px;color:var(--sub)}
         <div class="when">例外</div>
         <h3>次回の招待だけ作る</h3>
         <p>会議中に次回の日付が決まらなかったときだけ使います。</p>
-        <label class="field">日付 <input type="date" id="nextDate"></label>
+        <div class="cal" id="cal" aria-label="開催日を選ぶカレンダー"></div>
+        <div class="picked empty" id="picked" aria-live="polite">開催日をカレンダーで選んでください</div>
         <a class="btn ghost" data-prompt="invite" href="#">Claude で招待を作る</a>
       </div>
 
@@ -205,13 +220,46 @@ footer{margin-top:18px;font-size:13px;color:var(--sub)}
   var ym=function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)};
   var ymd=function(d){return d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate())};
 
+  var WD=["日","月","火","水","木","金","土"];
+  var selDate=null;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var view=new Date(today.getFullYear(),today.getMonth(),1);
+  function label(d){return d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate())+"（"+WD[d.getDay()]+"）"}
+  function renderCal(){
+    var y=view.getFullYear(), mo=view.getMonth();
+    var first=new Date(y,mo,1).getDay(), days=new Date(y,mo+1,0).getDate();
+    var atMin=(y===today.getFullYear()&&mo===today.getMonth());
+    var h='<div class="cal-head"><button type="button" class="cal-nav" data-nav="-1" aria-label="前の月"'+(atMin?' disabled':'')+'>‹</button>'
+      +'<b>'+y+'年'+(mo+1)+'月</b>'
+      +'<button type="button" class="cal-nav" data-nav="1" aria-label="次の月">›</button></div><div class="cal-grid">';
+    WD.forEach(function(w,i){h+='<div class="wd'+(i===0?' sun':i===6?' sat':'')+'">'+w+'</div>';});
+    for(var i=0;i<first;i++) h+='<div></div>';
+    for(var d=1;d<=days;d++){
+      var dt=new Date(y,mo,d), dow=dt.getDay();
+      var cls="d"+(dow===0?" sun":dow===6?" sat":"")+(dt.getTime()===today.getTime()?" today":"")+(selDate&&dt.getTime()===selDate.getTime()?" sel":"");
+      h+='<button type="button" class="'+cls+'" data-d="'+d+'"'+(dt<today?' disabled':'')+' aria-label="'+label(dt)+'">'+d+'</button>';
+    }
+    h+='</div>';
+    var cal=document.getElementById("cal"); cal.innerHTML=h;
+  }
+  document.getElementById("cal").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b||b.disabled) return;
+    if(b.dataset.nav){ view=new Date(view.getFullYear(),view.getMonth()+Number(b.dataset.nav),1); renderCal(); return; }
+    selDate=new Date(view.getFullYear(),view.getMonth(),Number(b.dataset.d));
+    var p=document.getElementById("picked");
+    p.textContent="選んだ日："+label(selDate)+" 13:00〜17:00";
+    p.classList.remove("empty");
+    renderCal();
+  });
+  renderCal();
+
   function prompts(){
     var now=new Date();
-    var nd=document.getElementById("nextDate").value;
+    var nd=selDate;
     return {
       kickoff:"high5の月次会議を始めて。high5-monthly-meetingスキルのキックオフとして、今月（"+ym(now)+"）の議事録を作成し、先月の振り返り・要確認リスト・今月のゴール候補まで書き込んで。担当欄は空欄のままにして。",
       closing:"high5の月次会議のクロージングです。今月の振り返りして。本日（"+ymd(now)+"）のGoogle Meetメモを探して、"+ym(now)+"の議事録の「今月の振り返り」に反映し、そのあと次回開催日の決定と招待送信まで進めて。",
-      invite:"high5の月次会議の次回招待を作って。"+(nd?("開催日は"+nd.replace(/-/g,"/")+"、"):"")+"時刻は_設定の既定枠で。",
+      invite:"high5の月次会議の次回招待を作って。"+(nd?("開催日は"+label(nd)+"、"):"")+"時刻は_設定の既定枠で。",
       status:"high5の先月のゴール、達成できてる？議事録とMeetメモで確かめられる範囲で教えて。"
     };
   }
