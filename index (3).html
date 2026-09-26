@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>high5 月次会議ランチャー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F4; --paper:#FFFFFF; --ink:#18212B; --sub:#55606B; --line:#D6DCDA;
+  --talk:#B7812A; --talk-bg:#FBF3E4; --work:#2D7A5C; --work-bg:#E6F2EC;
+  --accent:#1E5F7A; --accent-bg:#E4EFF3;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121719; --paper:#1A2124; --ink:#E7ECEA; --sub:#A3AEAB; --line:#2E3A3E;
+    --talk:#E2B45F; --talk-bg:#2C2416; --work:#6CC39C; --work-bg:#16291F;
+    --accent:#74B8D4; --accent-bg:#142A33;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121719; --paper:#1A2124; --ink:#E7ECEA; --sub:#A3AEAB; --line:#2E3A3E;
+  --talk:#E2B45F; --talk-bg:#2C2416; --work:#6CC39C; --work-bg:#16291F;
+  --accent:#74B8D4; --accent-bg:#142A33;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
+  line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding:28px 20px 40px}
+
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:clamp(24px,4vw,32px);font-weight:900;margin:0;line-height:1.3}
+.sub{color:var(--sub);font-size:14px;margin:4px 0 0}
+.now{text-align:right}
+.now .clock{font-size:clamp(28px,5vw,40px);font-weight:900;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+.now .phase{font-size:14px;font-weight:700;color:var(--sub);margin-top:6px}
+
+/* 4時間のレール（この画面の主役） */
+.rail{position:relative;display:grid;grid-template-columns:30fr 180fr 30fr;gap:4px;border-radius:14px;overflow:hidden;margin-bottom:8px}
+.rail div{padding:10px 12px;font-size:13px;font-weight:700}
+.rail .t{background:var(--talk-bg);color:var(--talk)}
+.rail .w{background:var(--work-bg);color:var(--work)}
+.rail .t.on,.rail .w.on{outline:3px solid currentColor;outline-offset:-3px}
+.marker{position:absolute;top:0;bottom:0;width:3px;background:var(--ink);border-radius:2px;display:none}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:26px;font-variant-numeric:tabular-nums}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.col h2{font-size:15px;font-weight:700;color:var(--sub);margin:0 0 10px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:12px}
+.card .when{font-size:13px;font-weight:700;color:var(--talk)}
+.card h3{font-size:19px;font-weight:900;margin:2px 0 4px;line-height:1.4}
+.card p{margin:0 0 14px;font-size:14px;color:var(--sub)}
+.card.hl{border-color:var(--talk);box-shadow:0 0 0 2px var(--talk-bg)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:13px 16px;border-radius:10px;border:0;cursor:pointer;font:inherit;font-weight:700;font-size:16px;
+  background:var(--accent);color:var(--paper);text-decoration:none}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.human{background:var(--work-bg);border-color:transparent}
+.human .when{color:var(--work)}
+.human ol{margin:0;padding-left:1.3em;font-size:15px}
+.human li{margin-bottom:4px}
+.field{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14px;color:var(--sub)}
+.field input{flex:1;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.links a{font-size:14px;font-weight:500;color:var(--accent);background:var(--accent-bg);border-radius:999px;padding:6px 14px;text-decoration:none}
+.links a:hover{text-decoration:underline}
+
+.opts{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--sub);margin-top:22px;flex-wrap:wrap}
+.opts select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+footer{margin-top:18px;font-size:13px;color:var(--sub)}
+
+@media (max-width:720px){
+  .grid{grid-template-columns:1fr}
+  .now{text-align:left}
+  .rail div{font-size:12px;padding:8px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>high5 月次会議ランチャー</h1>
+      <p class="sub">ボタンを押すと、指示を入力した状態で Claude が開きます。内容を確かめて送信してください。</p>
+    </div>
+    <div class="now" aria-live="polite">
+      <div class="clock" id="clock">--:--</div>
+      <div class="phase" id="phase">　</div>
+    </div>
+  </header>
+
+  <div class="rail" id="rail" aria-hidden="true">
+    <div class="t" data-p="kickoff">キックオフ</div>
+    <div class="w" data-p="work">ワークセッション</div>
+    <div class="t" data-p="closing">クロージング</div>
+    <span class="marker" id="marker"></span>
+  </div>
+  <div class="ticks" aria-hidden="true"><span>13:00</span><span>13:30</span><span style="flex:1"></span><span>16:30</span><span>17:00</span></div>
+
+  <div class="grid">
+    <section class="col">
+      <h2>Claude にお願いすること</h2>
+
+      <div class="card" data-hl="kickoff">
+        <div class="when">13:00 キックオフ</div>
+        <h3>会議を始める</h3>
+        <p>今月の議事録をつくり、先月の振り返り・要確認リスト・今月のゴール候補を書き込みます。</p>
+        <a class="btn" data-prompt="kickoff" href="#">Claude で会議を始める</a>
+      </div>
+
+      <div class="card" data-hl="closing">
+        <div class="when">16:35 クロージング</div>
+        <h3>今月を振り返る</h3>
+        <p>Meet に入り直してから押します。当日の Meet メモを議事録に反映し、次回の日付決めと招待送信まで進めます。</p>
+        <a class="btn" data-prompt="closing" href="#">Claude で今月を振り返る</a>
+      </div>
+
+      <div class="card">
+        <div class="when">例外</div>
+        <h3>次回の招待だけ作る</h3>
+        <p>会議中に次回の日付が決まらなかったときだけ使います。</p>
+        <label class="field">日付 <input type="date" id="nextDate"></label>
+        <a class="btn ghost" data-prompt="invite" href="#">Claude で招待を作る</a>
+      </div>
+
+      <div class="card">
+        <div class="when">いつでも</div>
+        <h3>先月のゴールの達成状況を聞く</h3>
+        <p>議事録と Meet メモで確かめられる範囲で答えます。</p>
+        <a class="btn ghost" data-prompt="status" href="#">Claude に聞く</a>
+      </div>
+    </section>
+
+    <section class="col">
+      <h2>みんながやること</h2>
+
+      <div class="card human" data-hl="kickoff">
+        <div class="when">13:00</div>
+        <h3>始める前に</h3>
+        <ol>
+          <li>Meet に入る</li>
+          <li>「メモを取ってもらう」を ON にする</li>
+          <li>左の「会議を始める」を押す</li>
+        </ol>
+      </div>
+
+      <div class="card human" data-hl="work">
+        <div class="when">13:30〜16:30</div>
+        <h3>ワークセッション</h3>
+        <ol>
+          <li>それぞれの作業に集中する</li>
+          <li>決まったことがあれば議事録の「ワークセッションメモ」へ</li>
+        </ol>
+      </div>
+
+      <div class="card human" data-hl="closing">
+        <div class="when">16:30</div>
+        <h3>一度 Meet を終了する</h3>
+        <ol>
+          <li>全員いったん Meet から退出する</li>
+          <li>数分待って、同じ URL で入り直す</li>
+          <li>左の「今月を振り返る」を押す</li>
+          <li>招待が届いたら、主催者は Meet メモの共有設定を「組織内の招待者」に</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:16px">すぐ開く</h3>
+        <div class="links">
+          <a href="https://meet.google.com/gvu-pwhz-gzx" target="_blank" rel="noopener">Meet</a>
+          <a href="https://drive.google.com/drive/folders/1CwOSPOgTxOw-DNqFL7BJ7Spkic4WQifX" target="_blank" rel="noopener">議事録フォルダ</a>
+          <a href="https://docs.google.com/document/d/1T3ynZCcH0eqV7iY1KQH31kXc23ONluv3kqRdfqE0rV0/edit" target="_blank" rel="noopener">_設定</a>
+          <a href="https://drive.google.com/drive/folders/1eNd_pFWz03PfNK4ZutkWnqoLRi66JK6Y" target="_blank" rel="noopener">スキル</a>
+          <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="opts">
+    <label for="target">Claude の開き方</label>
+    <select id="target">
+      <option value="web">ブラウザ（claude.ai）</option>
+      <option value="app">デスクトップアプリ</option>
+    </select>
+  </div>
+
+  <footer>時刻の表示はこの端末の時計を使っています。会議日以外でもボタンは使えます。</footer>
+</div>
+
+<script>
+(function(){
+  var pad=function(n){return String(n).padStart(2,"0")};
+  var ym=function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)};
+  var ymd=function(d){return d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate())};
+
+  function prompts(){
+    var now=new Date();
+    var nd=document.getElementById("nextDate").value;
+    return {
+      kickoff:"high5の月次会議を始めて。high5-monthly-meetingスキルのキックオフとして、今月（"+ym(now)+"）の議事録を作成し、先月の振り返り・要確認リスト・今月のゴール候補まで書き込んで。担当欄は空欄のままにして。",
+      closing:"high5の月次会議のクロージングです。今月の振り返りして。本日（"+ymd(now)+"）のGoogle Meetメモを探して、"+ym(now)+"の議事録の「今月の振り返り」に反映し、そのあと次回開催日の決定と招待送信まで進めて。",
+      invite:"high5の月次会議の次回招待を作って。"+(nd?("開催日は"+nd.replace(/-/g,"/")+"、"):"")+"時刻は_設定の既定枠で。",
+      status:"high5の先月のゴール、達成できてる？議事録とMeetメモで確かめられる範囲で教えて。"
+    };
+  }
+
+  function openClaude(key){
+    var text=prompts()[key];
+    var q=encodeURIComponent(text);
+    var target=document.getElementById("target").value;
+    var url=(target==="app"?"claude://claude.ai/new?q=":"https://claude.ai/new?q=")+q;
+    if(target==="app"){ location.href=url; } else { window.open(url,"_blank","noopener"); }
+  }
+
+  document.querySelectorAll("[data-prompt]").forEach(function(a){
+    a.addEventListener("click",function(e){e.preventDefault();openClaude(a.getAttribute("data-prompt"));});
+  });
+
+  try{
+    var saved=localStorage.getItem("high5-launcher-target");
+    if(saved) document.getElementById("target").value=saved;
+  }catch(e){}
+  document.getElementById("target").addEventListener("change",function(e){
+    try{localStorage.setItem("high5-launcher-target",e.target.value);}catch(err){}
+  });
+
+  var names={before:"会議前",kickoff:"いまはキックオフ",work:"いまはワークセッション",closing:"いまはクロージング",after:"会議時間外"};
+  function tick(){
+    var d=new Date(), m=d.getHours()*60+d.getMinutes();
+    document.getElementById("clock").textContent=pad(d.getHours())+":"+pad(d.getMinutes());
+    var p = m<780?"before": m<810?"kickoff": m<990?"work": m<1020?"closing":"after";
+    document.getElementById("phase").textContent=names[p];
+    document.querySelectorAll(".rail [data-p]").forEach(function(el){el.classList.toggle("on",el.dataset.p===p);});
+    document.querySelectorAll("[data-hl]").forEach(function(el){el.classList.toggle("hl",el.dataset.hl===p);});
+    var mk=document.getElementById("marker");
+    if(m>=780&&m<1020){ mk.style.display="block"; mk.style.left="calc("+((m-780)/240*100)+"% - 1px)"; }
+    else { mk.style.display="none"; }
+  }
+  tick(); setInterval(tick,20000);
+})();
+</script>
+</body>
+</html>
